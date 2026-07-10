@@ -55,15 +55,6 @@
     50% { transform: translateY(-18px) rotate(5deg); }
   }
 
-  .photo-card img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    position: absolute;
-    inset: 0;
-    z-index: 2; /* Permet à l'image de couvrir le texte d'attente */
-  }
-
   .hero-date {
     font-size: 13px;
     letter-spacing: 6px;
@@ -861,13 +852,24 @@
 (function() {
   const splash = document.getElementById('splash');
   const splashCanvas = document.getElementById('splash-canvas');
+
+  // Guard: si un élément manque, on cache le splash et on sort
+  if (!splash || !splashCanvas) {
+    if (splash) splash.style.display = 'none';
+    return;
+  }
+
   const sctx = splashCanvas.getContext('2d');
   const numEl = document.getElementById('splash-number');
   const ring = document.getElementById('ring-progress');
   const circumference = 377;
 
-  splashCanvas.width = window.innerWidth;
-  splashCanvas.height = window.innerHeight;
+  function setSplashSize() {
+    splashCanvas.width = window.innerWidth;
+    splashCanvas.height = window.innerHeight;
+  }
+  setSplashSize();
+  window.addEventListener('resize', setSplashSize);
 
   // Heart rain particles
   const heartChars = ['💕', '💗', '💖', '💝', '❤️', '🩷', '💓', '💞'];
@@ -907,17 +909,20 @@
   // Countdown logic
   let count = 3;
   let startTime = null;
-  let rafId;
 
   function updateRing(progress) {
-    // progress 0..1
-    const offset = circumference - circumference * progress;
-    ring.style.strokeDashoffset = offset;
+    if (!ring) return;
+    ring.style.strokeDashoffset = circumference - circumference * progress;
+  }
+
+  function dismissSplash() {
+    splash.classList.add('hide');
+    setTimeout(() => { splash.style.display = 'none'; }, 800);
   }
 
   function splashLoop(ts) {
     if (!startTime) startTime = ts;
-    const elapsed = (ts - startTime) / 1000; // seconds
+    const elapsed = (ts - startTime) / 1000;
     const total = 3;
     const progress = Math.min(elapsed / total, 1);
 
@@ -927,25 +932,21 @@
     const remaining = Math.ceil(total - elapsed);
     if (remaining !== count && remaining >= 1) {
       count = remaining;
-      numEl.textContent = count;
-      // burst animation on number change
-      numEl.style.animation = 'none';
-      void numEl.offsetWidth;
-      numEl.style.animation = 'pulse-num 1s ease-in-out infinite';
+      if (numEl) {
+        numEl.textContent = count;
+        numEl.style.animation = 'none';
+        void numEl.offsetWidth;
+        numEl.style.animation = 'pulse-num 1s ease-in-out infinite';
+      }
     }
 
     if (elapsed >= total) {
-      numEl.textContent = '💕';
-      setTimeout(() => {
-        splash.classList.add('hide');
-        setTimeout(() => {
-          splash.style.display = 'none';
-        }, 800);
-      }, 300);
+      if (numEl) numEl.textContent = '💕';
+      setTimeout(dismissSplash, 300);
       return;
     }
 
-    rafId = requestAnimationFrame(splashLoop);
+    requestAnimationFrame(splashLoop);
   }
 
   requestAnimationFrame(splashLoop);
